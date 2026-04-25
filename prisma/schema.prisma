@@ -1,0 +1,110 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ---------------------------------------------------------
+// USER
+// A basic user model — useful when you add auth later
+// (e.g. NextAuth.js). For now you can seed one default user.
+// ---------------------------------------------------------
+model User {
+  id        String     @id @default(cuid())
+  email     String     @unique
+  name      String?
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  bookmarks Bookmark[]
+  tags      Tag[]
+  collections Collection[]
+}
+
+// ---------------------------------------------------------
+// TAG
+// Tags are user-owned so two users can have the same tag
+// name without conflict.
+// ---------------------------------------------------------
+model Tag {
+  id        String   @id @default(cuid())
+  name      String
+  color     String?  // e.g. "#ff5733" — useful for UI badges
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  bookmarks BookmarkTag[]
+
+  @@unique([userId, name]) // a user can't have two tags with the same name
+}
+
+// ---------------------------------------------------------
+// COLLECTION
+// An optional folder-like grouping (e.g. "Work", "Reading List")
+// A bookmark can belong to one collection.
+// ---------------------------------------------------------
+model Collection {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  bookmarks Bookmark[]
+
+  @@unique([userId, name])
+}
+
+// ---------------------------------------------------------
+// BOOKMARK
+// The core model. Belongs to a user, optionally to a
+// collection, and can have many tags via BookmarkTag.
+// ---------------------------------------------------------
+model Bookmark {
+  id          String   @id @default(cuid())
+  url         String
+  title       String
+  description String?
+  favicon     String?  // store the favicon URL for display
+  pinned      Boolean  @default(false)
+  archived    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  userId       String
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  collectionId String?
+  collection   Collection?  @relation(fields: [collectionId], references: [id], onDelete: SetNull)
+
+  tags         BookmarkTag[]
+}
+
+// ---------------------------------------------------------
+// BOOKMARK_TAG  (join table)
+// Explicit many-to-many between Bookmark and Tag.
+// Prisma can auto-manage implicit M2M but an explicit join
+// table is better practice and easier to extend later.
+// ---------------------------------------------------------
+model BookmarkTag {
+  bookmarkId String
+  tagId      String
+
+  bookmark   Bookmark @relation(fields: [bookmarkId], references: [id], onDelete: Cascade)
+  tag        Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([bookmarkId, tagId]) // composite primary key
+}
